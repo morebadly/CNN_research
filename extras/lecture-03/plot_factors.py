@@ -1,16 +1,24 @@
 """Export lecture 03's SIMULATED factor figures using matplotlib, without network access.
 
-First run factor_lab.py. Then pass its chart_data.json through --input.
+Run without arguments to use the default simulation, generating it if needed.
+Use --input for a chart_data.json saved to a different directory.
 PNG and SVG are saved to a dedicated directory; unrelated contents are protected.
+In Spyder, the saved PNG figures also appear in the Plots pane.
 """
 from __future__ import annotations
 
 import argparse
 import json
 from pathlib import Path
+from runpy import run_path
+import sys
 
 import matplotlib
-matplotlib.use("Agg")
+
+IN_SPYDER = "spyder_kernels.console.shell" in sys.modules
+if not IN_SPYDER:
+    matplotlib.use("Agg")
+
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 import numpy as np
@@ -145,17 +153,39 @@ def correlation_figure(data: dict):
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--input", required=True, type=Path, help="chart_data.json from factor_lab.py")
-    parser.add_argument("--output", type=Path, default=Path("data/processed/lecture-03-plots"),
+    parser.add_argument("--input", type=Path, help="chart_data.json from factor_lab.py")
+    parser.add_argument("--output", type=Path,
                         help="Dedicated figure output directory; unrelated nonempty directories are refused")
     args = parser.parse_args()
+
+    processed = Path("data/processed")
+    if args.input is None:
+        chart_file = Path("lecture-03-simulation/chart_data.json")
+        lesson_dir = Path(__file__).resolve().parent
+        lesson_processed = lesson_dir / processed
+        if (lesson_processed / chart_file).is_file() or not (processed / chart_file).is_file():
+            processed = lesson_processed
+        args.input = processed / chart_file
+        lab_path = lesson_dir / "factor_lab.py"
+        if not args.input.is_file() and lab_path.is_file():
+            run_path(str(lab_path))["run"](args.input.parent)
+    if not args.input.is_file():
+        parser.error(f"找不到 {args.input}。请先运行 factor_lab.py，或用 --input 指定 chart_data.json。")
+
     data = load_data(args.input)
-    output = prepare_output(args.output)
+    output = prepare_output(args.output or (processed / "lecture-03-plots"))
     with plt.rc_context({"font.family": "DejaVu Sans", "font.size": 10, "svg.fonttype": "none",
                          "svg.hashsalt": "quant-babies-lecture03"}):
         files = save_figure(distribution_figure(data), output, "factor_distributions")
         files += save_figure(correlation_figure(data), output, "factor_correlations")
-    print(json.dumps({"data_kind": data["data_kind"], "files": [str(p) for p in files]}, indent=2))
+    print(json.dumps({"data_kind": data["data_kind"], "files": [str(p) for p in files]},
+                     ensure_ascii=False, indent=2))
+    if IN_SPYDER:
+        from IPython.display import Image, display
+
+        for path in files:
+            if path.suffix == ".png":
+                display(Image(filename=str(path)))
 
 
 if __name__ == "__main__":

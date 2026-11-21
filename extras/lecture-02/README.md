@@ -51,16 +51,16 @@ macOS / Linux 将解释器换为 `.venv/bin/python`。若已使用正确的课�
 
 `return_observed` 是上一有效观测间的**价格收益**，不含分红与成本。整数rolling窗口按有效观测计数，缺口下不等于固定交易日长度。`gap_days` 是自然日差，周末也会增大；不能仅凭它判定停牌或丢行情。
 
-## 选做：真实数据采集
+## 选做：读取本地日线
+
+在 Spyder 中打开 `collect_akshare.py` 或 `load_local_daily.py` 后按 F5。默认从 `D:\CNN_research\data_raw` 读取中国平安 `601318.SH` 的原始日线，日期为 2025-06-20 至 2025-07-04。读取 Parquet 需要 `pyarrow`。
 
 ```bash
-.venv\Scripts\python -m pip install akshare
-.venv\Scripts\python extras/lecture-02/collect_akshare.py --symbol 601318 --start 20250620 --end 20250704 --output work/pingan-snapshot-01
+.venv\Scripts\python -m pip install pyarrow
+.venv\Scripts\python extras/lecture-02/collect_akshare.py --data-dir "D:/CNN_research/data_raw" --symbol 601318.SH --start 20250620 --end 20250704 --output work/pingan-snapshot-01
 ```
 
-程序请求真实接口的raw与hfq数据，分文件保留并写入含版本、参数、UTC采集时间和SHA-256的 `manifest.json`。输出目录必须不存在。请求失败或结构异常直接报错，不用模拟值替代。每次采集换新快照目录。
-
-采集脚本保存来源原始单位：成交量为手、成交额为元；课程演示清洗后统一成交量为股，需显式乘100。前复权历史可能重算甚至出现负值，不能把本练习“原始价必须为正”的规则套用于所有复权序列。
+本地 Parquet 提供股票代码、日期和开盘、最高、最低、收盘价，缺少成交量、成交额和复权价。默认将行情显示在控制台。传入 `--output` 可导出原始价 CSV 和含 SHA-256 的 `manifest.json`，输出目录须是新目录。
 
 真实案例依据[中国平安2024年年度权益分派实施公告](https://www1.hkexnews.hk/listedco/listconews/sehk/2025/0619/2025061901148_c.pdf)，网页未编造当日真实收盘价或收益。
 
@@ -70,8 +70,9 @@ macOS / Linux 将解释器换为 `.venv/bin/python`。若已使用正确的课�
 - `course.css`：可维护的响应式布局与打印样式源文件；阅读不再依赖该文件。
 - `course.js`：可维护的交互源文件；阅读不再依赖该文件。
 - `lab.py`：完整离线实验与质量检查。
-- `collect_akshare.py`：可选联网快照采集。
-- `requirements.txt`：离线实验依赖；AkShare独立选装。
+- `collect_akshare.py`：本地日线读取及可选快照导出。
+- `load_local_daily.py`：本地 Parquet 读取入口，可直接按 F5。
+- `requirements.txt`：模拟实操依赖；按需为本地 Parquet 安装 `pyarrow`。
 
 现有第一期、第二期及 `extras/lecture-01/` 不属于本讲修改范围。
 

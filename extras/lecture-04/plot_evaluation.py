@@ -1,6 +1,7 @@
 """Export SIMULATED lecture 04 method figures from local chart_data.json.
 
 No data collection, strategy return, NAV, or statistical significance claim is made.
+In Spyder, the saved PNG figures also appear in the Plots pane.
 """
 from __future__ import annotations
 
@@ -8,9 +9,15 @@ import argparse
 from datetime import datetime
 import json
 from pathlib import Path
+from runpy import run_path
+import sys
 
 import matplotlib
-matplotlib.use("Agg")
+
+IN_SPYDER = "spyder_kernels.console.shell" in sys.modules
+if not IN_SPYDER:
+    matplotlib.use("Agg")
+
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import numpy as np
@@ -195,15 +202,36 @@ def run(input_path: Path, output: Path) -> dict:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--input", type=Path, required=True, help="The evaluation lab's chart_data.json")
-    parser.add_argument("--output", type=Path, required=True, help="A dedicated generated-figure directory")
+    parser.add_argument("--input", type=Path, help="The evaluation lab's chart_data.json")
+    parser.add_argument("--output", type=Path, help="A dedicated generated-figure directory")
     args = parser.parse_args()
+
+    processed = Path("data/processed")
     try:
-        result = run(args.input, args.output)
+        if args.input is None:
+            chart_file = Path("lecture04-simulation/chart_data.json")
+            lesson_dir = Path(__file__).resolve().parent
+            lesson_processed = lesson_dir / processed
+            if (lesson_processed / chart_file).is_file() or not (processed / chart_file).is_file():
+                processed = lesson_processed
+            args.input = processed / chart_file
+            lab_path = lesson_dir / "evaluation_lab.py"
+            if not args.input.is_file() and lab_path.is_file():
+                run_path(str(lab_path))["run"](args.input.parent)
+        if not args.input.is_file():
+            parser.error(f"找不到 {args.input}。请先运行 evaluation_lab.py，或用 --input 指定 chart_data.json。")
+        output = args.output or (processed / "lecture04-figures")
+        result = run(args.input, output)
     except (OSError, ValueError, KeyError, TypeError) as exc:
-        print(f"Figure export failed: {exc}", file=__import__("sys").stderr)
+        print(f"Figure export failed: {exc}", file=sys.stderr)
         return 1
     print(json.dumps(result, ensure_ascii=False, indent=2))
+    if IN_SPYDER:
+        from IPython.display import Image, display
+
+        for name in result["files"]:
+            if name.endswith(".png"):
+                display(Image(filename=str(output / name)))
     return 0
 
 
